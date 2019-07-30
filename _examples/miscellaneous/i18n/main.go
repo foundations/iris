@@ -22,10 +22,10 @@ func newApp() *iris.Application {
 		// it tries to find the language by:
 		// ctx.Values().GetString("language")
 		// if that was empty then
-		// it tries to find from the URLParameter setted on the configuration
+		// it tries to find from the URLParameter set on the configuration
 		// if not found then
 		// it tries to find the language by the "language" cookie
-		// if didn't found then it it set to the Default setted on the configuration
+		// if didn't found then it it set to the Default set on the configuration
 
 		// hi is the key, 'iris' is the %s on the .ini file
 		// the second parameter is optional
@@ -58,6 +58,19 @@ func newApp() *iris.Application {
 			language, "key1", fromFirstFileValue,
 			"key2", fromSecondFileValue)
 	})
+
+	// using in inside your templates:
+	view := iris.HTML("./templates", ".html")
+	app.RegisterView(view)
+
+	app.Get("/templates", func(ctx iris.Context) {
+		ctx.View("index.html", iris.Map{
+			"tr": ctx.Translate,
+		})
+		// it will return "hello, iris"
+		// when {{call .tr "hi" "iris"}}
+	})
+	//
 
 	return app
 }

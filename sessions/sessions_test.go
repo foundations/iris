@@ -17,7 +17,7 @@ func TestSessions(t *testing.T) {
 }
 
 const (
-	testEnableSubdomain = false
+	testEnableSubdomain = true
 )
 
 func testSessions(t *testing.T, sess *sessions.Sessions, app *iris.Application) {
@@ -35,16 +35,14 @@ func testSessions(t *testing.T, sess *sessions.Sessions, app *iris.Application) 
 	}
 
 	if testEnableSubdomain {
-		app.Party("subdomain.").Get("/get", func(ctx context.Context) {
-			writeValues(ctx)
-		})
+		app.Party("subdomain.").Get("/get", writeValues)
 	}
 
 	app.Post("/set", func(ctx context.Context) {
 		s := sess.Start(ctx)
 		vals := make(map[string]interface{}, 0)
 		if err := ctx.ReadJSON(&vals); err != nil {
-			t.Fatalf("Cannot readjson. Trace %s", err.Error())
+			t.Fatalf("Cannot read JSON. Trace %s", err.Error())
 		}
 		for k, v := range vals {
 			s.Set(k, v)
@@ -84,15 +82,16 @@ func testSessions(t *testing.T, sess *sessions.Sessions, app *iris.Application) 
 	e.POST("/set").WithJSON(values).Expect().Status(iris.StatusOK).Cookies().NotEmpty()
 	e.GET("/get").Expect().Status(iris.StatusOK).JSON().Object().Equal(values)
 	if testEnableSubdomain {
-		es := httptest.New(t, app, httptest.URL("http://subdomain.example.com"))
+		es := e.Builder(func(req *httptest.Request) {
+			req.WithURL("http://subdomain.example.com")
+		})
 		es.Request("GET", "/get").Expect().Status(iris.StatusOK).JSON().Object().Equal(values)
 	}
-
 	// test destroy which also clears first
 	d := e.GET("/destroy").Expect().Status(iris.StatusOK)
 	d.JSON().Object().Empty()
 	// 	This removed: d.Cookies().Empty(). Reason:
-	// httpexpect counts the cookies setted or deleted at the response time, but cookie is not removed, to be really removed needs to SetExpire(now-1second) so,
+	// httpexpect counts the cookies set or deleted at the response time, but cookie is not removed, to be really removed needs to SetExpire(now-1second) so,
 	// test if the cookies removed on the next request, like the browser's behavior.
 	e.GET("/after_destroy").Expect().Status(iris.StatusOK).Cookies().Empty()
 	// set and clear again
